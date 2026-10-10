@@ -63,11 +63,7 @@
 
 ## 🎬 Demo
 
-<div align="center">
-  <video src="assets/english_demo_new_compressed.mp4" controls width="100%">
-    Demo：<a href="assets/english_demo_new_compressed.mp4">english_demo_new_compressed.mp4</a>
-  </video>
-</div>
+https://github.com/user-attachments/assets/146c41d4-cf6f-4b48-b84e-3a8ecf010e32
 
 - 参考字幕中的彩色字块表示哪个模型最先给出该字/词的可靠提交结果：
   **X2** 青色、**Qwen** 蓝色、**R2T2** 橙色、**X-ASR** 紫色；颜色确定后不再改变。

@@ -70,11 +70,7 @@ demo.
 
 ## 🎬 Demo
 
-<div align="center">
-  <video src="assets/english_demo_new_compressed.mp4" controls width="100%">
-    Demo: <a href="assets/english_demo_new_compressed.mp4">english_demo_new_compressed.mp4</a>
-  </video>
-</div>
+https://github.com/user-attachments/assets/146c41d4-cf6f-4b48-b84e-3a8ecf010e32
 
 - Colored tokens in the reference transcript identify the model that first
   produced a reliably aligned committed result: **X2** in cyan, **Qwen** in

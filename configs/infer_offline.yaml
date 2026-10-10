@@ -1,0 +1,37 @@
+# Adaptive interleaved offline ASR inference
+# Listen all audio frames → force one W_off → decode to EOS.
+# Requires adaptive_latency=true; do NOT use adaptive_latency=false to fake offline.
+#
+# Usage:
+#   python infer.py --config configs/infer_offline.yaml --audio /path/to/test.wav
+
+model:
+  model_type: voxtral_asr
+  model_path: ""                    # set with --model_path or a public local model
+  lora_path: ""                     # optional public LoRA adapter
+  device: "cuda:0"
+  max_new_tokens: 256
+  adaptive_latency: true
+  emit_word_prob_threshold: null   # ignored in offline mode
+
+language_tag:
+  enabled: true
+  ids:
+    zh: 0
+    en: 1
+    cs: 2
+    
+inference:
+  audio: ""
+  mode: offline                     # streaming | offline
+  offline_emit_token: W_off             # offline decode emit token: W vs W_off
+
+batch:
+  input_file: ""            # JSONL；每行包含 audio、wav 或 wav_path
+  output_file: ""
+  batch_size: 16            # offline 真正 GPU batch
+  pipeline_encode: true    # decode∥下一批 CPU mel（+可选 GPU encode stream）
+  pipeline_gpu_encode: true
+  listen_chunk_size: 16
+  stream_batch_rows: 0
+  limit: 0

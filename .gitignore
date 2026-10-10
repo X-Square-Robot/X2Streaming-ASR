@@ -1,0 +1,51 @@
+# Outputs, datasets, and caches
+output/
+data/
+cache/
+.cache/
+
+# Logs, batch input/output, and demo runtime data
+*.jsonl
+*.log
+demo/uploads/
+
+# Weights, checkpoints, archives, and audio
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+*.onnx
+*.nemo
+*.tar
+*.gz
+*.zip
+*.wav
+*.mp3
+*.flac
+*.arrow
+*.parquet
+
+# Caches, virtualenvs, and editor files
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.idea/
+.vscode/
+.DS_Store
+.venv/
+venv/
+.venv-*/
+
+# Secrets
+.env
+*.pem
+id_rsa
+credentials
+credentials.json
+
+# Accidental empty root files
+sE=*

@@ -1,0 +1,5 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+websockets>=14.0
+librosa>=0.10.0
+numpy>=1.24.0

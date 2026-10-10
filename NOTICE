@@ -1,0 +1,8 @@
+X2StreamingASR
+Copyright 2026 X2StreamingASR Contributors
+
+The X2StreamingASR model is derived from
+mistralai/Voxtral-Mini-4B-Realtime-2602:
+https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602
+
+The upstream model is licensed under the Apache License 2.0.

@@ -1,0 +1,35 @@
+# Voxtral Realtime ASR 推理配置
+
+model:
+  model_type: voxtral_asr
+  model_path: ""            # 通过 --model_path 或本地公开模型目录设置
+  lora_path: ""             # 可选公开 LoRA adapter
+  device: "cuda:0"
+  max_new_tokens: 256
+  adaptive_latency: true   # 交织自适应：listen↔decode；忽略固定 τ；AdaRMS OFF
+  # LISTEN 时 P(W)>=阈值则强制进入 DECODE；null=原始 argmax==W
+  emit_word_prob_threshold: null
+
+language_tag:
+  enabled: true
+  require_checkpoint_weights: true
+  ids:
+    zh: 0
+    en: 1
+    cs: 2
+
+inference:
+  audio: ""                 # 单文件转写（留空则走 batch 模式）
+  mode: streaming           # streaming | offline（offline 见 configs/infer_offline.yaml）
+
+batch:
+  input_file: ""            # JSONL；每行包含 audio、wav 或 wav_path
+  output_file: ""
+  batch_size: 1
+  pipeline_encode: true       # 下句 mel∥本句 listen/decode
+  pipeline_gpu_encode: true   # 可选：下句 audio encode 与本句状态机重叠
+  listen_chunk_size: 16       # LISTEN 多帧一次 LM forward（1=逐帧旧行为）
+  # >1 = 锁步批量 streaming：N 句共享一个 LM forward（吞吐 ~N/2 倍，
+  # 决策与逐句一致；设置后优先于 pipeline_encode 的逐句路径）
+  stream_batch_rows: 16
+  limit: 0            # 0 = 全部

@@ -65,7 +65,7 @@
 
 *请取消静音以收听音频。*
 
-https://github.com/user-attachments/assets/5728e1ad-3fb5-49cd-9cce-4bd1e7e8ae58
+https://github.com/user-attachments/assets/640f5a6d-c88b-4a59-a8c9-67ef3c833464
 
 - 参考字幕中的彩色字块表示哪个模型最先给出该字/词的可靠提交结果：
   **X2** 青色、**Qwen** 蓝色、**R2T2** 橙色、**X-ASR** 紫色；颜色确定后不再改变。

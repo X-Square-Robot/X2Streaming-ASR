@@ -70,7 +70,9 @@ demo.
 
 ## 🎬 Demo
 
-https://github.com/user-attachments/assets/146c41d4-cf6f-4b48-b84e-3a8ecf010e32
+*Unmute for audio.*
+
+https://github.com/user-attachments/assets/5728e1ad-3fb5-49cd-9cce-4bd1e7e8ae58
 
 - Colored tokens in the reference transcript identify the model that first
   produced a reliably aligned committed result: **X2** in cyan, **Qwen** in

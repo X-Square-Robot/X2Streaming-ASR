@@ -433,3 +433,13 @@ bash demo/run.sh
 - 模型权重：见 [MODEL_LICENSE.md](MODEL_LICENSE.md)
 - 上游模型：
   [mistralai/Voxtral-Mini-4B-Realtime-2602](https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602)
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=x-square-robot%2Fx2streaming-asr&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=x-square-robot/x2streaming-asr&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=x-square-robot/x2streaming-asr&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=x-square-robot/x2streaming-asr&type=date&legend=top-left" />
+ </picture>
+</a>

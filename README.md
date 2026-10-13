@@ -460,6 +460,8 @@ If X2Streaming-ASR is useful for your research, please cite:
 
 ## Star History
 
+## Star History
+
 <a href="https://www.star-history.com/?repos=x-square-robot%2Fx2streaming-asr&type=date&legend=top-left">
  <picture>
    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=x-square-robot/x2streaming-asr&type=date&theme=dark&legend=top-left" />

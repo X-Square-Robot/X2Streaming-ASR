@@ -225,14 +225,31 @@ class AdaptiveSession:
 
     # ── public ────────────────────────────────────────────────────────
 
-    def reset(self):
+    def _drain_event_queue(self) -> None:
+        while True:
+            try:
+                self._event_q.get_nowait()
+            except queue.Empty:
+                break
+
+    def reset(self, *, keep_event_queue: bool = False):
+        """Drop live state.
+
+        ``keep_event_queue`` is for a language switch while ``pump_events``
+        is already blocked in ``_event_q.get``. Replacing the queue leaves
+        that pump on the old object, so later live/offline text never reaches
+        the page. Drain stale events and keep the same queue instead.
+        """
         self.abort()
         self._buffer = np.zeros(0, dtype=np.float32)
         self._embed_q = self._new_embed_q()
         self._leftover_frames: List[torch.Tensor] = []
         self._feat_q = queue.Queue(maxsize=_FEAT_Q_MAX)
-        self._event_q = queue.Queue()
-        self._text_q = self._event_q
+        if keep_event_queue:
+            self._drain_event_queue()
+        else:
+            self._event_q = queue.Queue()
+            self._text_q = self._event_q
         self._closed.clear()
         self._abort.clear()
         self._feat_closed.clear()

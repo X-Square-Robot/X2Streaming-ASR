@@ -442,10 +442,17 @@ async def _handle_transformers_adaptive_ws(websocket: WebSocket):
             if mtype == "start":
                 # Reuse the pre-warmed live worker unless language_tag changed;
                 # pad KV already has the old lang embed and must be rebuilt.
+                # Keep the event queue: pump_events is blocked on it, and a
+                # new queue would swallow en/cs partials and the final.
                 lang_changed = _apply_language(data)
                 _apply_infer_flags(data)
                 if lang_changed:
-                    session.reset()
+                    print(
+                        f"[demo] language={data.get('language')} "
+                        f"id={session.language_id} re-warmup",
+                        flush=True,
+                    )
+                    session.reset(keep_event_queue=True)
                 await _arm_live()
                 await websocket.send_json({
                     "type": "status",
@@ -481,7 +488,12 @@ async def _handle_transformers_adaptive_ws(websocket: WebSocket):
                     lang_changed = _apply_language(data)
                     _apply_infer_flags(data)
                     if lang_changed:
-                        session.reset()
+                        print(
+                            f"[demo] language={data.get('language')} "
+                            f"id={session.language_id} re-warmup",
+                            flush=True,
+                        )
+                        session.reset(keep_event_queue=True)
                     tmp_path = _take_upload_path(data)
                     await _arm_live()
                     audio = load_wav_float32(

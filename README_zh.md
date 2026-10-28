@@ -388,21 +388,25 @@ bash demo/run.sh
 服务启动后访问 `http://localhost:7860`。`LANGUAGE` 设置默认语言标签（`zh`、`en` 或
 `cs`，默认 `zh`），英文语音请使用 `LANGUAGE=en`。
 
-使用 vLLM 时，先转换并启动模型服务：
+使用 vLLM 时（自适应流式，支持多路并发），先启动 vLLM 实时服务。首次启动会自动把
+文本 LM 导出到 `$MODEL_PATH-vllm-text`：
 
 ```bash
-python tools/convert_hf_to_mistral.py "$MODEL_PATH"
-
-vllm serve "$MODEL_PATH" \
-  --host 0.0.0.0 \
-  --port 8000 \
-  --tokenizer-mode mistral \
-  --config-format mistral \
-  --enforce-eager \
-  --gpu-memory-utilization 0.9
+MODEL_PATH="$MODEL_PATH" \
+CUDA_VISIBLE_DEVICES=0 \
+MAX_SESSIONS=4 \
+bash vllm_realtime/serve.sh
 ```
 
-再启动 Demo 代理：
+- vLLM 文本 LM 和音频 encoder 默认共用一张卡，显存约 40–43 GB（默认 `GPU_MEM=0.35`）；
+  设置 `ENCODER_GPU=1` 可把 encoder 放到另一张卡。
+- `MAX_SESSIONS` 是并发路数上限，超出时返回 `session_busy`。单张 A800 80GB 上，
+  6 路在 4 分钟以内的连续音频上 emit 延迟 p90 ≤ 0.5 s；8 路适合 1 分钟以内的短音频。
+- 显卡与其他进程共用时，建议用 `KV_CACHE_GIB=4` 直接指定 KV 大小，并调低 `GPU_MEM`（如 `0.2`）：
+  vLLM 启动时要求空闲显存不少于 `GPU_MEM` × 显卡总显存。
+- vLLM 模式只输出流式识别结果，不做录音结束后的离线整句识别。
+
+日志出现 `Uvicorn running on http://0.0.0.0:8000` 后，再启动 Demo 代理：
 
 ```bash
 BACKEND=vllm \
@@ -413,6 +417,8 @@ VLLM_PORT=8000 \
 REPO_ID="$MODEL_PATH" \
 bash demo/run.sh
 ```
+
+vLLM 后端只支持自适应模式（`MODE=adaptive`）。
 
 ## 📝 引用
 

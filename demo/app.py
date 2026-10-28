@@ -5,7 +5,7 @@ Supports:
   --mode    fixed | adaptive
 
 Adaptive interleaved ASR cannot run on stock vLLM; use
-``MODE=adaptive_vllm bash vllm/serve.sh`` which starts the persistent-KV
+``MODEL_PATH=... bash vllm_realtime/serve.sh`` which starts the persistent-KV
 Realtime server, then ``BACKEND=vllm MODE=adaptive bash demo/run.sh``.
 """
 
@@ -657,6 +657,10 @@ async def _handle_transformers_ws(websocket: WebSocket, default_delay_ms: int):
 # vLLM / adaptive-serve backend (same Realtime WS protocol)
 # ---------------------------------------------------------------------------
 
+# A refreshed tab can reconnect before its old upstream session has released
+# its slot; retry session_busy briefly instead of failing the new page.
+_VLLM_BUSY_RETRY_S = 10.0
+
 async def _handle_vllm_ws(websocket: WebSocket, vllm_url: str, model: str):
     import websockets
 
@@ -665,9 +669,27 @@ async def _handle_vllm_ws(websocket: WebSocket, vllm_url: str, model: str):
         audio, _ = librosa.load(path, sr=sr, mono=True)
         return (audio * 32767).astype(np.int16).tobytes()
 
+    async def open_upstream():
+        deadline = time.monotonic() + _VLLM_BUSY_RETRY_S
+        while True:
+            cm = websockets.connect(vllm_url, max_size=None)
+            ws = await cm.__aenter__()
+            try:
+                created = json.loads(await ws.recv())
+            except BaseException:
+                await cm.__aexit__(None, None, None)
+                raise
+            if (
+                created.get("code") == "session_busy"
+                and time.monotonic() < deadline
+            ):
+                await cm.__aexit__(None, None, None)
+                await asyncio.sleep(0.5)
+                continue
+            return cm, ws, created
+
     try:
-        vllm_ws_cm = websockets.connect(vllm_url, max_size=None)
-        vllm_ws = await vllm_ws_cm.__aenter__()
+        vllm_ws_cm, vllm_ws, created = await open_upstream()
     except OSError as exc:
         await websocket.send_json({
             "type": "status",
@@ -680,9 +702,29 @@ async def _handle_vllm_ws(websocket: WebSocket, vllm_url: str, model: str):
         return
 
     try:
-        created = json.loads(await vllm_ws.recv())
         if created.get("type") != "session.created":
-            raise RuntimeError(f"Unexpected vLLM handshake: {created}")
+            code = str(created.get("code") or "upstream_handshake_error")
+            message = str(
+                created.get("message")
+                or f"Unexpected vLLM handshake: {created}"
+            )
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "code": code,
+                    "message": message,
+                })
+                await websocket.close(
+                    code=1013 if code == "session_busy" else 1011,
+                    reason=(
+                        "realtime session busy"
+                        if code == "session_busy"
+                        else "upstream handshake failed"
+                    ),
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            return
         supports_warmup = created.get("inference") == "vllm_true_stream"
         await vllm_ws.send(json.dumps({
             "type": "session.update",
@@ -733,27 +775,6 @@ async def _handle_vllm_ws(websocket: WebSocket, vllm_url: str, model: str):
                                 "mode": "emit",
                                 "text": data.get("delta", ""),
                             })
-                    elif mtype == "offline_start":
-                        await websocket.send_json({
-                            "type": "status",
-                            "message": "offline_start",
-                        })
-                    elif mtype == "offline_emit":
-                        await websocket.send_json({
-                            "type": "partial",
-                            "phase": "offline",
-                            "mode": "emit",
-                            "text": data.get("text", ""),
-                            "emits": data.get("emits") or [],
-                        })
-                    elif mtype == "offline_done":
-                        await websocket.send_json({
-                            "type": "partial",
-                            "phase": "offline",
-                            "mode": "done",
-                            "text": data.get("text", ""),
-                            "emits": data.get("emits") or [],
-                        })
                     elif mtype == "transcription.done":
                         await websocket.send_json({
                             "type": "final",
@@ -787,7 +808,7 @@ async def _handle_vllm_ws(websocket: WebSocket, vllm_url: str, model: str):
             except Exception as exc:  # Browser refresh can break send_json mid-warmup.
                 upstream_error = f"browser websocket closed: {exc}"
                 # Unblock prewarm()/commit immediately so their finally block can
-                # send session.end and release the single-session vLLM lock.
+                # send session.end and release the upstream session slot.
                 warmup_ev.set()
                 done_ev.set()
 
@@ -839,16 +860,13 @@ async def _handle_vllm_ws(websocket: WebSocket, vllm_url: str, model: str):
                     enable_live = bool(
                         data.get("enable_live", app.state.enable_live)
                     )
-                    enable_offline = bool(
-                        data.get("enable_offline", app.state.enable_offline)
-                    )
                     lang = data.get("language", data.get("language_id"))
                     if lang is None or lang == "":
                         lang = getattr(app.state, "default_language", "zh")
+                    # The vLLM server returns the live transcript only.
                     cfg = {
                         "type": "session.configure",
                         "enable_live": enable_live,
-                        "enable_offline": enable_offline,
                         "language": lang,
                     }
                     await vllm_ws.send(json.dumps(cfg))
@@ -857,7 +875,7 @@ async def _handle_vllm_ws(websocket: WebSocket, vllm_url: str, model: str):
                         "message": "session_started",
                         "mode": app.state.mode,
                         "live": enable_live,
-                        "offline": enable_offline,
+                        "offline": False,
                         "warmup_done": True,
                         "language": lang if lang not in (None, "") else "zh",
                     })
@@ -915,12 +933,6 @@ async def _handle_vllm_ws(websocket: WebSocket, vllm_url: str, model: str):
                             "type": "session.configure",
                             "enable_live": bool(
                                 data.get("enable_live", app.state.enable_live)
-                            ),
-                            "enable_offline": bool(
-                                data.get(
-                                    "enable_offline",
-                                    app.state.enable_offline,
-                                )
                             ),
                             "language": file_lang,
                         }))
@@ -1243,12 +1255,12 @@ def main():
         print(f"LISTEN chunk: live={app.state.listen_chunk_size} offline=16")
         print(
             f"Infer:    live={'on' if app.state.enable_live else 'off'}  "
-            f"offline={'on' if app.state.enable_offline else 'off'}  "
+            f"offline={'on' if app.state.enable_offline and args.backend != 'vllm' else 'off'}  "
             f"language={app.state.default_language}"
         )
     print(f"Demo:    http://{args.host}:{args.port}")
     if args.backend == "vllm" and args.mode == "adaptive":
-        print("Hint:    start server with  MODE=adaptive_vllm bash vllm/serve.sh")
+        print("Hint:    start server with  MODEL_PATH=... bash vllm_realtime/serve.sh")
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
 

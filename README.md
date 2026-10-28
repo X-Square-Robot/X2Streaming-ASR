@@ -412,21 +412,31 @@ bash demo/run.sh
 Open `http://localhost:7860`. `LANGUAGE` sets the default language tag (`zh`,
 `en`, or `cs`; default `zh`); use `LANGUAGE=en` for English speech.
 
-For vLLM, convert and serve the model first:
+For vLLM (adaptive streaming with concurrent sessions), start the vLLM
+realtime server first. The first launch exports the text LM to
+`$MODEL_PATH-vllm-text`:
 
 ```bash
-python tools/convert_hf_to_mistral.py "$MODEL_PATH"
-
-vllm serve "$MODEL_PATH" \
-  --host 0.0.0.0 \
-  --port 8000 \
-  --tokenizer-mode mistral \
-  --config-format mistral \
-  --enforce-eager \
-  --gpu-memory-utilization 0.9
+MODEL_PATH="$MODEL_PATH" \
+CUDA_VISIBLE_DEVICES=0 \
+MAX_SESSIONS=4 \
+bash vllm_realtime/serve.sh
 ```
 
-Then launch the demo proxy:
+- The vLLM text LM and the audio encoder share one GPU by default, using about
+  40–43 GB (default `GPU_MEM=0.35`); set `ENCODER_GPU=1` to move the encoder to
+  another card.
+- `MAX_SESSIONS` caps concurrent sessions; extra clients get `session_busy`. On
+  one A800 80GB, 6 sessions keep emit latency p90 ≤ 0.5 s on continuous audio
+  up to 4 minutes; 8 sessions suit clips under 1 minute.
+- On a GPU shared with other jobs, set the KV cache size directly, e.g.
+  `KV_CACHE_GIB=4`, and lower `GPU_MEM` (e.g. `0.2`): vLLM still requires
+  `GPU_MEM` × total GPU memory to be free at startup.
+- vLLM mode returns the streaming transcript only; there is no offline
+  full-utterance pass after recording stops.
+
+Once the log shows `Uvicorn running on http://0.0.0.0:8000`, launch the demo
+proxy:
 
 ```bash
 BACKEND=vllm \
@@ -437,6 +447,8 @@ VLLM_PORT=8000 \
 REPO_ID="$MODEL_PATH" \
 bash demo/run.sh
 ```
+
+The vLLM backend serves adaptive mode (`MODE=adaptive`) only.
 
 ## 📝 Citation
 
